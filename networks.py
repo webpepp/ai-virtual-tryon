@@ -457,7 +457,7 @@ class ALIASGenerator(BaseNetwork):
 
         self.sh, self.sw = self.compute_latent_vector_size(opt)
 
-        nf = opt.ngf
+        nf = oopt.ngf = 32
         self.conv_0 = nn.Conv2d(input_nc, nf * 16, kernel_size=3, padding=1)
         for i in range(1, 8):
             self.add_module('conv_{}'.format(i), nn.Conv2d(input_nc, 16, kernel_size=3, padding=1))
