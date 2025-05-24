@@ -8,55 +8,54 @@ import numpy as np
 from networks import SegGenerator, GMM, ALIASGenerator
 from utils import gen_noise, load_checkpoint
 
-# Load once and reuse models globally
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
 checkpoint_dir = './checkpoints'
 load_height, load_width = 1024, 768
 
-seg = SegGenerator(None, input_nc=21, output_nc=13)
-gmm = GMM(None, inputA_nc=7, inputB_nc=3)
-alias = ALIASGenerator(None, input_nc=9)
+seg = SegGenerator(None, input_nc=21, output_nc=13).to(device)
+gmm = GMM(None, inputA_nc=7, inputB_nc=3).to(device)
+alias = ALIASGenerator(None, input_nc=9).to(device)
 
 load_checkpoint(seg, os.path.join(checkpoint_dir, 'seg_final.pth'))
 load_checkpoint(gmm, os.path.join(checkpoint_dir, 'gmm_final.pth'))
 load_checkpoint(alias, os.path.join(checkpoint_dir, 'alias_final.pth'))
 
-seg.cuda().eval()
-gmm.cuda().eval()
-alias.cuda().eval()
+seg.eval()
+gmm.eval()
+alias.eval()
 
 def preprocess_image(path, size=(load_width, load_height)):
     img = cv2.imread(path)
     img = cv2.resize(img, size)
     img = img[:, :, ::-1].transpose(2, 0, 1) / 255.0
-    img = torch.FloatTensor(img).unsqueeze(0).cuda()
+    img = torch.FloatTensor(img).unsqueeze(0).to(device)
     return img
 
 def run_tryon(person_img_path, cloth_img_path):
     person = preprocess_image(person_img_path)
     cloth = preprocess_image(cloth_img_path)
-    cloth_mask = (cloth.sum(dim=1, keepdim=True) > 0).float()  # basic binary mask
+    cloth_mask = (cloth.sum(dim=1, keepdim=True) > 0).float()
 
-    gauss = tgm.image.GaussianBlur((15, 15), (3, 3)).cuda()
+    gauss = tgm.image.GaussianBlur((15, 15), (3, 3)).to(device)
 
-    # Fake parse_agnostic and pose (for testing — replace with real if needed)
-    parse_agnostic = torch.randn(1, 13, load_height, load_width).cuda()
-    pose = torch.randn(1, 18, load_height, load_width).cuda()
-    img_agnostic = person  # in real setup, this is different
+    # TODO: replace with real parsing & pose estimation
+    parse_agnostic = torch.randn(1, 13, load_height, load_width).to(device)
+    pose = torch.randn(1, 18, load_height, load_width).to(device)
+    img_agnostic = person
 
-    # Segmentation
     parse_input = torch.cat([
         F.interpolate(cloth * cloth_mask, (256, 192)),
         F.interpolate(cloth_mask, (256, 192)),
         F.interpolate(parse_agnostic, (256, 192)),
         F.interpolate(pose, (256, 192)),
-        gen_noise((1, 1, 256, 192)).cuda()
+        gen_noise((1, 1, 256, 192)).to(device)
     ], dim=1)
 
     seg_out = seg(parse_input)
     parse = gauss(F.interpolate(seg_out, size=(load_height, load_width))).argmax(dim=1)[:, None]
-    parse_onehot = torch.zeros(1, 13, load_height, load_width).cuda().scatter_(1, parse, 1.0)
+    parse_onehot = torch.zeros(1, 13, load_height, load_width).to(device).scatter_(1, parse, 1.0)
 
-    # Prepare for GMM
     gmm_input = torch.cat([
         F.interpolate(parse_onehot[:, 2:3], (256, 192)),
         F.interpolate(pose, (256, 192)),
