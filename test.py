@@ -15,14 +15,16 @@ load_height, load_width = 1024, 768
 
 class Opt:
     def __init__(self):
-        self.load_width = 256
-        self.load_height = 192
+        self.load_height = 256
+        self.load_width = 192
+        self.ngf = 64
         self.init_type = 'normal'
         self.init_variance = 0.02
-        self.grid_size = 5
-        self.num_upsampling_layers = 'normal'
-        self.ngf = 64
+        self.num_upsampling_layers = 'normal'  # could be 'more' or 'most' as well
         self.norm_G = 'spectralinstance'
+        self.semantic_nc = 13  # VITON-HD usually uses 13 semantic classes
+        self.output_nc = 3     # RGB
+        self.input_nc = 9      # standard input channels for try-on image + pose + mask        
 
 opt = Opt()
 
