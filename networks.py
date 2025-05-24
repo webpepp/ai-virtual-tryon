@@ -453,17 +453,20 @@ class ALIASResBlock(nn.Module):
 class ALIASGenerator(BaseNetwork):
     def __init__(self, opt, input_nc):
         super(ALIASGenerator, self).__init__()
-        self.num_upsampling_layers = opt.num_upsampling_layers = 'normal'
 
+        opt.num_upsampling_layers = 'normal'  # Ensure this matches the checkpoint
+        opt.ngf = 32                          # Set base number of filters to match checkpoint
+        opt.semantic_nc = 7                  # Number of segmentation channels (e.g., 7 + mask = 8)
+
+        self.num_upsampling_layers = opt.num_upsampling_layers
         self.sh, self.sw = self.compute_latent_vector_size(opt)
 
-        nf = oopt.ngf = 32
+        nf = opt.ngf
         self.conv_0 = nn.Conv2d(input_nc, nf * 16, kernel_size=3, padding=1)
         for i in range(1, 8):
             self.add_module('conv_{}'.format(i), nn.Conv2d(input_nc, 16, kernel_size=3, padding=1))
 
         self.head_0 = ALIASResBlock(opt, nf * 16, nf * 16)
-
         self.G_middle_0 = ALIASResBlock(opt, nf * 16 + 16, nf * 16)
         self.G_middle_1 = ALIASResBlock(opt, nf * 16 + 16, nf * 16)
 
