@@ -28,7 +28,7 @@ class Opt:
 opt = Opt()
 
 # Instantiate models using the same opt instance
-seg = SegGenerator(None, input_nc=21, output_nc=13).to(device)
+seg = SegGenerator(opt, input_nc=21, output_nc=13).to(device)
 gmm = GMM(opt, inputA_nc=7, inputB_nc=3).to(device)
 alias = ALIASGenerator(opt, input_nc=9).to(device)
 
