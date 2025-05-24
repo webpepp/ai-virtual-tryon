@@ -15,31 +15,24 @@ load_height, load_width = 1024, 768
 
 class Opt:
     def __init__(self):
-        self.init_type = 'normal'       # or 'xavier', 'kaiming' etc.
-        self.init_variance = 0.02       # common default variance
-
-opt = Opt()
-seg = SegGenerator(opt, input_nc=21, output_nc=13).to(device)
-gmm = GMM(None, inputA_nc=7, inputB_nc=3).to(device)
-alias = ALIASGenerator(None, input_nc=9).to(device)
-
-load_checkpoint(seg, os.path.join(checkpoint_dir, 'seg_final.pth'))
-class Opt:
-    def __init__(self):
-        self.load_width = 256       # typical value, change if needed
-        self.load_height = 192      # typical value, change if needed
-        self.init_type = 'normal'   # needed for SegGenerator init
-        self.init_variance = 0.02   # needed for SegGenerator init
+        self.load_width = 256       # typical value, adjust if needed
+        self.load_height = 192      # typical value, adjust if needed
+        self.init_type = 'normal'   # initialization type
+        self.init_variance = 0.02   # initialization variance
 
 opt = Opt()
 
-# Instantiate SegGenerator earlier like this:
+# Instantiate models using the same opt instance
 seg = SegGenerator(opt, input_nc=21, output_nc=13).to(device)
-
-# Then instantiate GMM like this:
 gmm = GMM(opt, inputA_nc=7, inputB_nc=3).to(device)
+alias = ALIASGenerator(opt, input_nc=9).to(device)
+
+# Load checkpoints
+load_checkpoint(seg, os.path.join(checkpoint_dir, 'seg_final.pth'))
+load_checkpoint(gmm, os.path.join(checkpoint_dir, 'gmm_final.pth'))
 load_checkpoint(alias, os.path.join(checkpoint_dir, 'alias_final.pth'))
 
+# Set models to eval mode
 seg.eval()
 gmm.eval()
 alias.eval()
