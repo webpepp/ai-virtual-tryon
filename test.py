@@ -22,6 +22,7 @@ class Opt:
         self.grid_size = 5
         self.num_upsampling_layers = 'normal'
         self.ngf = 64
+        self.norm_G = 'spectralinstance'
 
 opt = Opt()
 
