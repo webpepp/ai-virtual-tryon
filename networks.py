@@ -453,7 +453,7 @@ class ALIASResBlock(nn.Module):
 class ALIASGenerator(BaseNetwork):
     def __init__(self, opt, input_nc):
         super(ALIASGenerator, self).__init__()
-        self.num_upsampling_layers = opt.num_upsampling_layers
+        self.num_upsampling_layers = opt.num_upsampling_layers = 'normal'
 
         self.sh, self.sw = self.compute_latent_vector_size(opt)
 
