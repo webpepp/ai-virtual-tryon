@@ -313,8 +313,8 @@ class GMM(nn.Module):
         self.extractionA = FeatureExtraction(inputA_nc, ngf=64, num_layers=4)
         self.extractionB = FeatureExtraction(inputB_nc, ngf=64, num_layers=4)
         self.correlation = FeatureCorrelation()
-        self.regression = FeatureRegression(input_nc=(opt.load_width // 64) * (opt.load_height // 64),
-                                            output_size=2 * opt.grid_size**2)
+        self.regression = FeatureRegression(input_nc=192,
+                                    output_size=2 * opt.grid_size**2)
         self.gridGen = TpsGridGen(opt)
 
     def forward(self, inputA, inputB):
