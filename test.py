@@ -153,3 +153,8 @@ def main():
 
 if __name__ == '__main__':
     main()
+
+def run_tryon(person_img, cloth_img):
+    # Your model processing logic here
+    # Save output as 'output/result.png'
+    return 'output/result.png'
