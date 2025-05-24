@@ -15,10 +15,11 @@ load_height, load_width = 1024, 768
 
 class Opt:
     def __init__(self):
-        self.load_width = 256       # typical value, adjust if needed
-        self.load_height = 192      # typical value, adjust if needed
-        self.init_type = 'normal'   # initialization type
-        self.init_variance = 0.02   # initialization variance
+        self.load_width = 256
+        self.load_height = 192
+        self.init_type = 'normal'
+        self.init_variance = 0.02
+        self.grid_size = 5
 
 opt = Opt()
 
