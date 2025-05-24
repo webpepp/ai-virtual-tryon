@@ -57,8 +57,8 @@ class BaseNetwork(nn.Module):
 # ----------------------------------------------------------------------------------------------------------------------
 class SegGenerator(BaseNetwork):
     def __init__(self, opt, input_nc, output_nc=13, norm_layer=nn.InstanceNorm2d):
-    super(SegGenerator, self).__init__()
-    self.opt = opt
+        super(SegGenerator, self).__init__()
+        self.opt = opt
 
         self.conv1 = nn.Sequential(nn.Conv2d(input_nc, 64, kernel_size=3, padding=1), norm_layer(64), nn.ReLU(),
                                    nn.Conv2d(64, 64, kernel_size=3, padding=1), norm_layer(64), nn.ReLU())
