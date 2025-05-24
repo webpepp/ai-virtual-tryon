@@ -419,7 +419,7 @@ class ALIASResBlock(nn.Module):
             if self.learned_shortcut:
                 self.conv_s = spectral_norm(self.conv_s)
 
-        semantic_nc = opt.semantic_nc = 7
+        semantic_nc = opt.semantic_nc
         if use_mask_norm:
             subnorm_type = 'aliasmask'
             semantic_nc = semantic_nc + 1
