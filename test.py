@@ -21,7 +21,7 @@ class Opt:
         self.init_type = 'normal'
         self.init_variance = 0.02
         self.grid_size = 5
-        self.num_upsampling_layers = 'normal'  # could be 'more' or 'most' as well
+        self.num_upsampling_layers = 'normal'  # <-- ADD THIS LINE
         self.norm_G = 'aliasinstance'
         self.semantic_nc = 13  # VITON-HD usually uses 13 semantic classes
 
