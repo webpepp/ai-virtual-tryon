@@ -1,155 +1,98 @@
-import argparse
-import os
-
 import torch
-from torch import nn
-from torch.nn import functional as F
-import torchgeometry as tgm
+import torch.nn.functional as F
+import kornia.geometry as tgm
+import os
+import cv2
+import numpy as np
 
-from datasets import VITONDataset, VITONDataLoader
 from networks import SegGenerator, GMM, ALIASGenerator
-from utils import gen_noise, load_checkpoint, save_images
+from utils import gen_noise, load_checkpoint
 
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-def get_opt():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--name', type=str, required=True)
+checkpoint_dir = './checkpoints'
+load_height, load_width = 1024, 768
 
-    parser.add_argument('-b', '--batch_size', type=int, default=1)
-    parser.add_argument('-j', '--workers', type=int, default=1)
-    parser.add_argument('--load_height', type=int, default=1024)
-    parser.add_argument('--load_width', type=int, default=768)
-    parser.add_argument('--shuffle', action='store_true')
+class Opt:
+    def __init__(self):
+        self.load_height = 256
+        self.load_width = 192
+        self.ngf = 64
+        self.init_type = 'normal'
+        self.init_variance = 0.02
+        self.grid_size = 5
+        self.num_upsampling_layers = 'normal'  # could be 'more' or 'most' as well
+        self.norm_G = 'aliasinstance'
+        self.semantic_nc = 13  # VITON-HD usually uses 13 semantic classes
 
-    parser.add_argument('--dataset_dir', type=str, default='./datasets/')
-    parser.add_argument('--dataset_mode', type=str, default='test')
-    parser.add_argument('--dataset_list', type=str, default='test_pairs.txt')
-    parser.add_argument('--checkpoint_dir', type=str, default='./checkpoints/')
-    parser.add_argument('--save_dir', type=str, default='./results/')
+opt = Opt()
 
-    parser.add_argument('--display_freq', type=int, default=1)
+# Instantiate models using the same opt instance
+seg = SegGenerator(opt, input_nc=21, output_nc=13).to(device)
+gmm = GMM(opt, inputA_nc=7, inputB_nc=3).to(device)
+alias = ALIASGenerator(opt, input_nc=9).to(device)
 
-    parser.add_argument('--seg_checkpoint', type=str, default='seg_final.pth')
-    parser.add_argument('--gmm_checkpoint', type=str, default='gmm_final.pth')
-    parser.add_argument('--alias_checkpoint', type=str, default='alias_final.pth')
+# Load checkpoints
+load_checkpoint(seg, os.path.join(checkpoint_dir, 'seg_final.pth'))
+load_checkpoint(gmm, os.path.join(checkpoint_dir, 'gmm_final.pth'))
+load_checkpoint(alias, os.path.join(checkpoint_dir, 'alias_final.pth'))
 
-    # common
-    parser.add_argument('--semantic_nc', type=int, default=13, help='# of human-parsing map classes')
-    parser.add_argument('--init_type', choices=['normal', 'xavier', 'xavier_uniform', 'kaiming', 'orthogonal', 'none'], default='xavier')
-    parser.add_argument('--init_variance', type=float, default=0.02, help='variance of the initialization distribution')
+# Set models to eval mode
+seg.eval()
+gmm.eval()
+alias.eval()
 
-    # for GMM
-    parser.add_argument('--grid_size', type=int, default=5)
+def preprocess_image(path, size=(load_width, load_height)):
+    img = cv2.imread(path)
+    img = cv2.resize(img, size)
+    img = img[:, :, ::-1].transpose(2, 0, 1) / 255.0
+    img = torch.FloatTensor(img).unsqueeze(0).to(device)
+    return img
 
-    # for ALIASGenerator
-    parser.add_argument('--norm_G', type=str, default='spectralaliasinstance')
-    parser.add_argument('--ngf', type=int, default=64, help='# of generator filters in the first conv layer')
-    parser.add_argument('--num_upsampling_layers', choices=['normal', 'more', 'most'], default='most',
-                        help='If \'more\', add upsampling layer between the two middle resnet blocks. '
-                             'If \'most\', also add one more (upsampling + resnet) layer at the end of the generator.')
+def run_tryon(person_img_path, cloth_img_path):
+    person = preprocess_image(person_img_path)
+    cloth = preprocess_image(cloth_img_path)
+    cloth_mask = (cloth.sum(dim=1, keepdim=True) > 0).float()
 
-    opt = parser.parse_args()
-    return opt
+    gauss = tgm.image.GaussianBlur((15, 15), (3, 3)).to(device)
 
+    # TODO: replace with real parsing & pose estimation
+    parse_agnostic = torch.randn(1, 13, load_height, load_width).to(device)
+    pose = torch.randn(1, 18, load_height, load_width).to(device)
+    img_agnostic = person
 
-def test(opt, seg, gmm, alias):
-    up = nn.Upsample(size=(opt.load_height, opt.load_width), mode='bilinear')
-    gauss = tgm.image.GaussianBlur((15, 15), (3, 3))
-    gauss.cuda()
+    parse_input = torch.cat([
+        F.interpolate(cloth * cloth_mask, (256, 192)),
+        F.interpolate(cloth_mask, (256, 192)),
+        F.interpolate(parse_agnostic, (256, 192)),
+        F.interpolate(pose, (256, 192)),
+        gen_noise((1, 1, 256, 192)).to(device)
+    ], dim=1)
 
-    test_dataset = VITONDataset(opt)
-    test_loader = VITONDataLoader(opt, test_dataset)
+    seg_out = seg(parse_input)
+    parse = gauss(F.interpolate(seg_out, size=(load_height, load_width))).argmax(dim=1)[:, None]
+    parse_onehot = torch.zeros(1, 13, load_height, load_width).to(device).scatter_(1, parse, 1.0)
 
-    with torch.no_grad():
-        for i, inputs in enumerate(test_loader.data_loader):
-            img_names = inputs['img_name']
-            c_names = inputs['c_name']['unpaired']
+    gmm_input = torch.cat([
+        F.interpolate(parse_onehot[:, 2:3], (256, 192)),
+        F.interpolate(pose, (256, 192)),
+        F.interpolate(img_agnostic, (256, 192))
+    ], dim=1)
 
-            img_agnostic = inputs['img_agnostic'].cuda()
-            parse_agnostic = inputs['parse_agnostic'].cuda()
-            pose = inputs['pose'].cuda()
-            c = inputs['cloth']['unpaired'].cuda()
-            cm = inputs['cloth_mask']['unpaired'].cuda()
+    _, grid = gmm(gmm_input, F.interpolate(cloth, (256, 192)))
+    warped_c = F.grid_sample(cloth, grid, padding_mode='border')
+    warped_cm = F.grid_sample(cloth_mask, grid, padding_mode='border')
 
-            # Part 1. Segmentation generation
-            parse_agnostic_down = F.interpolate(parse_agnostic, size=(256, 192), mode='bilinear')
-            pose_down = F.interpolate(pose, size=(256, 192), mode='bilinear')
-            c_masked_down = F.interpolate(c * cm, size=(256, 192), mode='bilinear')
-            cm_down = F.interpolate(cm, size=(256, 192), mode='bilinear')
-            seg_input = torch.cat((cm_down, c_masked_down, parse_agnostic_down, pose_down, gen_noise(cm_down.size()).cuda()), dim=1)
+    misalign = parse_onehot[:, 2:3] - warped_cm
+    misalign[misalign < 0] = 0
+    parse_div = torch.cat([parse_onehot, misalign], dim=1)
+    parse_div[:, 2:3] -= misalign
 
-            parse_pred_down = seg(seg_input)
-            parse_pred = gauss(up(parse_pred_down))
-            parse_pred = parse_pred.argmax(dim=1)[:, None]
+    output = alias(torch.cat([img_agnostic, pose, warped_c], dim=1), parse_onehot, parse_div, misalign)
+    result = (output[0].cpu().numpy().transpose(1, 2, 0) * 255).astype(np.uint8)
 
-            parse_old = torch.zeros(parse_pred.size(0), 13, opt.load_height, opt.load_width, dtype=torch.float).cuda()
-            parse_old.scatter_(1, parse_pred, 1.0)
+    os.makedirs("output", exist_ok=True)
+    result_path = "output/result.png"
+    cv2.imwrite(result_path, cv2.cvtColor(result, cv2.COLOR_RGB2BGR))
 
-            labels = {
-                0:  ['background',  [0]],
-                1:  ['paste',       [2, 4, 7, 8, 9, 10, 11]],
-                2:  ['upper',       [3]],
-                3:  ['hair',        [1]],
-                4:  ['left_arm',    [5]],
-                5:  ['right_arm',   [6]],
-                6:  ['noise',       [12]]
-            }
-            parse = torch.zeros(parse_pred.size(0), 7, opt.load_height, opt.load_width, dtype=torch.float).cuda()
-            for j in range(len(labels)):
-                for label in labels[j][1]:
-                    parse[:, j] += parse_old[:, label]
-
-            # Part 2. Clothes Deformation
-            agnostic_gmm = F.interpolate(img_agnostic, size=(256, 192), mode='nearest')
-            parse_cloth_gmm = F.interpolate(parse[:, 2:3], size=(256, 192), mode='nearest')
-            pose_gmm = F.interpolate(pose, size=(256, 192), mode='nearest')
-            c_gmm = F.interpolate(c, size=(256, 192), mode='nearest')
-            gmm_input = torch.cat((parse_cloth_gmm, pose_gmm, agnostic_gmm), dim=1)
-
-            _, warped_grid = gmm(gmm_input, c_gmm)
-            warped_c = F.grid_sample(c, warped_grid, padding_mode='border')
-            warped_cm = F.grid_sample(cm, warped_grid, padding_mode='border')
-
-            # Part 3. Try-on synthesis
-            misalign_mask = parse[:, 2:3] - warped_cm
-            misalign_mask[misalign_mask < 0.0] = 0.0
-            parse_div = torch.cat((parse, misalign_mask), dim=1)
-            parse_div[:, 2:3] -= misalign_mask
-
-            output = alias(torch.cat((img_agnostic, pose, warped_c), dim=1), parse, parse_div, misalign_mask)
-
-            unpaired_names = []
-            for img_name, c_name in zip(img_names, c_names):
-                unpaired_names.append('{}_{}'.format(img_name.split('_')[0], c_name))
-
-            save_images(output, unpaired_names, os.path.join(opt.save_dir, opt.name))
-
-            if (i + 1) % opt.display_freq == 0:
-                print("step: {}".format(i + 1))
-
-
-def main():
-    opt = get_opt()
-    print(opt)
-
-    if not os.path.exists(os.path.join(opt.save_dir, opt.name)):
-        os.makedirs(os.path.join(opt.save_dir, opt.name))
-
-    seg = SegGenerator(opt, input_nc=opt.semantic_nc + 8, output_nc=opt.semantic_nc)
-    gmm = GMM(opt, inputA_nc=7, inputB_nc=3)
-    opt.semantic_nc = 7
-    alias = ALIASGenerator(opt, input_nc=9)
-    opt.semantic_nc = 13
-
-    load_checkpoint(seg, os.path.join(opt.checkpoint_dir, opt.seg_checkpoint))
-    load_checkpoint(gmm, os.path.join(opt.checkpoint_dir, opt.gmm_checkpoint))
-    load_checkpoint(alias, os.path.join(opt.checkpoint_dir, opt.alias_checkpoint))
-
-    seg.cuda().eval()
-    gmm.cuda().eval()
-    alias.cuda().eval()
-    test(opt, seg, gmm, alias)
-
-
-if __name__ == '__main__':
-    main()
+    return result_path
