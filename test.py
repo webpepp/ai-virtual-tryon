@@ -13,7 +13,13 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 checkpoint_dir = './checkpoints'
 load_height, load_width = 1024, 768
 
-seg = SegGenerator(None, input_nc=21, output_nc=13).to(device)
+class Opt:
+    def __init__(self):
+        self.init_type = 'normal'       # or 'xavier', 'kaiming' etc.
+        self.init_variance = 0.02       # common default variance
+
+opt = Opt()
+seg = SegGenerator(opt, input_nc=21, output_nc=13).to(device)
 gmm = GMM(None, inputA_nc=7, inputB_nc=3).to(device)
 alias = ALIASGenerator(None, input_nc=9).to(device)
 
