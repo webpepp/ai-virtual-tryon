@@ -20,6 +20,7 @@ class Opt:
         self.init_type = 'normal'
         self.init_variance = 0.02
         self.grid_size = 5
+        self.num_upsampling_layers = 'normal'
 
 opt = Opt()
 
