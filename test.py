@@ -1,6 +1,6 @@
 import torch
 import torch.nn.functional as F
-import torchgeometry as tgm
+import kornia.geometry as tgm
 import os
 import cv2
 import numpy as np
