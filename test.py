@@ -22,7 +22,7 @@ class Opt:
         self.init_variance = 0.02
         self.grid_size = 5
         self.num_upsampling_layers = 'normal'  # could be 'more' or 'most' as well
-        self.norm_G = 'spectralinstance'
+        self.norm_G = 'aliasinstance'
         self.semantic_nc = 13  # VITON-HD usually uses 13 semantic classes
         self.output_nc = 3     # RGB
         self.input_nc = 9      # standard input channels for try-on image + pose + mask
