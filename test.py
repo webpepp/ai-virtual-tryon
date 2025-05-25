@@ -1,6 +1,6 @@
 import torch
 import torch.nn.functional as F
-import kornia.geometry as tgm
+import kornia.filters as kf
 import os
 import cv2
 import numpy as np
@@ -50,7 +50,7 @@ def run_tryon(person_img_path, cloth_img_path):
     cloth = preprocess_image(cloth_img_path)
     cloth_mask = (cloth.sum(dim=1, keepdim=True) > 0).float()
 
-    gauss = tgm.image.GaussianBlur((15, 15), (3, 3)).to(device)
+    gauss = kf.GaussianBlur2d((15, 15), (3, 3)).to(device)
 
     parse_agnostic = torch.randn(1, 13, load_height, load_width).to(device)
     pose = torch.randn(1, 18, load_height, load_width).to(device)
