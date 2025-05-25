@@ -1,20 +1,22 @@
 from flask import Flask, request, send_file
 from flask_cors import CORS
 import os
-from test import run_tryon  # Your try-on function
+from test import run_tryon  # assumes test.py contains run_tryon()
 
 app = Flask(__name__)
-CORS(app)
+
+# Allow only your domain OR allow all origins (use only for development)
+CORS(app, resources={r"/tryon": {"origins": "https://pepphr.com"}})  # replace "*" with "https://pepphr.com" for production
 
 os.makedirs('input', exist_ok=True)
 os.makedirs('output', exist_ok=True)
 
 @app.route('/tryon', methods=['POST'])
 def tryon():
-    if 'person' not in request.files or 'cloth' not in request.files:
-        return 'Missing person or cloth file', 400
+    if 'image' not in request.files or 'cloth' not in request.files:
+        return 'Missing image or cloth file', 400
 
-    person = request.files['person']
+    person = request.files['image']
     cloth = request.files['cloth']
 
     person_path = 'input/person.jpg'
