@@ -4,9 +4,7 @@ import os
 from test import run_tryon  # assumes test.py contains run_tryon()
 
 app = Flask(__name__)
-
-# CORS for your domain (secure)
-CORS(app, resources={r"/tryon": {"origins": "https://pepphr.com"}})
+CORS(app, resources={r"/tryon": {"origins": "*"}})  # TEMP: allows all
 
 os.makedirs('input', exist_ok=True)
 os.makedirs('output', exist_ok=True)
