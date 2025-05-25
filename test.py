@@ -9,7 +9,6 @@ from networks import SegGenerator, GMM, ALIASGenerator
 from utils import gen_noise, load_checkpoint
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
 checkpoint_dir = './checkpoints'
 load_height, load_width = 1024, 768
 
@@ -21,23 +20,20 @@ class Opt:
         self.init_type = 'normal'
         self.init_variance = 0.02
         self.grid_size = 5
-        self.num_upsampling_layers = 'most'  # <-- ADD THIS LINE
+        self.num_upsampling_layers = 'most'
         self.norm_G = 'aliasinstance'
-        self.semantic_nc = 7  # VITON-HD usually uses 13 semantic classes
+        self.semantic_nc = 7
 
 opt = Opt()
 
-# Instantiate models using the same opt instance
 seg = SegGenerator(opt, input_nc=21, output_nc=13).to(device)
 gmm = GMM(opt, inputA_nc=7, inputB_nc=3).to(device)
 alias = ALIASGenerator(opt, input_nc=9).to(device)
 
-# Load checkpoints
 load_checkpoint(seg, os.path.join(checkpoint_dir, 'seg_final.pth'))
 load_checkpoint(gmm, os.path.join(checkpoint_dir, 'gmm_final.pth'))
 load_checkpoint(alias, os.path.join(checkpoint_dir, 'alias_final.pth'))
 
-# Set models to eval mode
 seg.eval()
 gmm.eval()
 alias.eval()
@@ -56,7 +52,6 @@ def run_tryon(person_img_path, cloth_img_path):
 
     gauss = tgm.image.GaussianBlur((15, 15), (3, 3)).to(device)
 
-    # TODO: replace with real parsing & pose estimation
     parse_agnostic = torch.randn(1, 13, load_height, load_width).to(device)
     pose = torch.randn(1, 18, load_height, load_width).to(device)
     img_agnostic = person
