@@ -6,7 +6,7 @@ from test import run_tryon  # assumes test.py contains run_tryon()
 app = Flask(__name__)
 
 # Allow only your domain OR allow all origins (use only for development)
-CORS(app, resources={r"/tryon": {"origins": "https://pepphr.com"}})  # replace "*" with "https://pepphr.com" for production
+CORS(app, resources={r"/tryon": {"origins": "*"}})  # replace "*" with "your url" for production
 
 os.makedirs('input', exist_ok=True)
 os.makedirs('output', exist_ok=True)
