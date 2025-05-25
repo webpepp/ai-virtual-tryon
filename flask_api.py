@@ -4,8 +4,17 @@ import os
 from test import run_tryon  # assumes test.py contains run_tryon()
 
 app = Flask(__name__)
-CORS(app, resources={r"/tryon": {"origins": "https://pepphr.com"}})  # TEMP: allows all
 
+# ✅ Fix: Allow preflight OPTIONS and credentials (if needed)
+CORS(app, supports_credentials=True, resources={
+    r"/tryon": {
+        "origins": ["https://pepphr.com"],
+        "methods": ["POST", "OPTIONS"],
+        "allow_headers": ["Content-Type"]
+    }
+})
+
+# Ensure directories exist
 os.makedirs('input', exist_ok=True)
 os.makedirs('output', exist_ok=True)
 
@@ -27,7 +36,7 @@ def tryon():
         result_path = run_tryon(person_path, cloth_path)
         return send_file(result_path, mimetype='image/png')
     except Exception as e:
-        print("❌ Error in /tryon:", str(e))  # Log error
+        print("❌ Error in /tryon:", str(e))  # This shows in Colab
         return f"Internal Server Error: {str(e)}", 500
 
 if __name__ == '__main__':
