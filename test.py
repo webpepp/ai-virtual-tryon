@@ -23,7 +23,7 @@ class Opt:
         self.grid_size = 5
         self.num_upsampling_layers = 'normal'  # <-- ADD THIS LINE
         self.norm_G = 'aliasinstance'
-        self.semantic_nc = 13  # VITON-HD usually uses 13 semantic classes
+        self.semantic_nc = 8  # VITON-HD usually uses 13 semantic classes
 
 opt = Opt()
 
