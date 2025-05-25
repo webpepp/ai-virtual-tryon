@@ -57,12 +57,11 @@ def run_tryon(person_img_path, cloth_img_path):
     img_agnostic = person
 
     parse_input = torch.cat([
-        F.interpolate(cloth * cloth_mask, (256, 192)),
-        F.interpolate(cloth_mask, (256, 192)),
-        F.interpolate(parse_agnostic, (256, 192)),
-        F.interpolate(pose, (256, 192)),
-        gen_noise((1, 1, 256, 192)).to(device)
-    ], dim=1)
+    F.interpolate(cloth_mask, (256, 192)),             # [1, 1, 256, 192]
+    F.interpolate(parse_agnostic, (256, 192)),         # [1, 13, 256, 192]
+    F.interpolate(pose[:, :6], (256, 192)),            # [1, 6, 256, 192] – use first 6 keypoints
+    gen_noise((1, 1, 256, 192)).to(device)             # [1, 1, 256, 192]
+], dim=1)  # ✅ Total: 1 + 13 + 6 + 1 = 21 channels
 
     seg_out = seg(parse_input)
     parse = gauss(F.interpolate(seg_out, size=(load_height, load_width))).argmax(dim=1)[:, None]
