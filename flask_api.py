@@ -1,7 +1,7 @@
 from flask import Flask, request, send_file
 from flask_cors import CORS
 import os
-from test import run_tryon  # your AI function here
+from test import run_tryon  # Your try-on function
 
 app = Flask(__name__)
 CORS(app)
@@ -11,10 +11,10 @@ os.makedirs('output', exist_ok=True)
 
 @app.route('/tryon', methods=['POST'])
 def tryon():
-    if 'image' not in request.files or 'cloth' not in request.files:
-        return 'Missing image or cloth file', 400
+    if 'person' not in request.files or 'cloth' not in request.files:
+        return 'Missing person or cloth file', 400
 
-    person = request.files['image']
+    person = request.files['person']
     cloth = request.files['cloth']
 
     person_path = 'input/person.jpg'
@@ -23,9 +23,12 @@ def tryon():
     person.save(person_path)
     cloth.save(cloth_path)
 
-    result_path = run_tryon(person_path, cloth_path)
-
-    return send_file(result_path, mimetype='image/png')
+    try:
+        result_path = run_tryon(person_path, cloth_path)
+        return send_file(result_path, mimetype='image/png')
+    except Exception as e:
+        print("Error:", e)
+        return 'Processing failed', 500
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
