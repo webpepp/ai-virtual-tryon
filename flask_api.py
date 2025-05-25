@@ -20,23 +20,28 @@ os.makedirs('output', exist_ok=True)
 
 @app.route('/tryon', methods=['POST'])
 def tryon():
-    if 'image' not in request.files or 'cloth' not in request.files:
-        return 'Missing image or cloth file', 400
-
-    person = request.files['image']
-    cloth = request.files['cloth']
-
-    person_path = 'input/person.jpg'
-    cloth_path = 'input/cloth.jpg'
-
-    person.save(person_path)
-    cloth.save(cloth_path)
-
     try:
+        if 'image' not in request.files or 'cloth' not in request.files:
+            print("Missing image or cloth")
+            return 'Missing image or cloth file', 400
+
+        person = request.files['image']
+        cloth = request.files['cloth']
+
+        person_path = 'input/person.jpg'
+        cloth_path = 'input/cloth.jpg'
+
+        person.save(person_path)
+        cloth.save(cloth_path)
+
+        print("✅ Files saved. Calling run_tryon...")
         result_path = run_tryon(person_path, cloth_path)
+        print("✅ Result path:", result_path)
+
         return send_file(result_path, mimetype='image/png')
+
     except Exception as e:
-        print("❌ Error in /tryon:", str(e))  # This shows in Colab
+        print("❌ Error in /tryon:", str(e))
         return f"Internal Server Error: {str(e)}", 500
 
 if __name__ == '__main__':
