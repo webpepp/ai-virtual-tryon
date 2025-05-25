@@ -23,14 +23,14 @@ class Opt:
         self.grid_size = 5
         self.num_upsampling_layers = 'normal'  # <-- ADD THIS LINE
         self.norm_G = 'aliasinstance'
-        self.semantic_nc = 8  # VITON-HD usually uses 13 semantic classes
+        self.semantic_nc = 7  # VITON-HD usually uses 13 semantic classes
 
 opt = Opt()
 
 # Instantiate models using the same opt instance
 seg = SegGenerator(opt, input_nc=21, output_nc=13).to(device)
 gmm = GMM(opt, inputA_nc=7, inputB_nc=3).to(device)
-alias = ALIASGenerator(opt, input_nc=8).to(device)
+alias = ALIASGenerator(opt, input_nc=7).to(device)
 
 # Load checkpoints
 load_checkpoint(seg, os.path.join(checkpoint_dir, 'seg_final.pth'))
