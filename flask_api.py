@@ -27,8 +27,8 @@ def tryon():
         result_path = run_tryon(person_path, cloth_path)
         return send_file(result_path, mimetype='image/png')
     except Exception as e:
-        print("Error:", e)
-        return 'Processing failed', 500
+        print("❌ Error in /tryon:", str(e))  # Log error
+        return f"Internal Server Error: {str(e)}", 500
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
